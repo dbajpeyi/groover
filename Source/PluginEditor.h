@@ -37,7 +37,12 @@ private:
     Segmented fill, speed;
     DiceButton dice;
 
+    juce::Rectangle<int> statusArea() const;
+
     int shownGroove = -1;
+    uint32_t lastNotesSent = 0;
+    int activityFrames = 0;   // frames left to keep the MIDI OUT light lit
+    int shownStatus = -1;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GrooverEditor)
 };

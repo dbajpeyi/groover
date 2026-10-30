@@ -199,6 +199,8 @@ void GrooverProcessor::processBlock (juce::AudioBuffer<float>& audio, juce::Midi
     if (auto* hostPlayHead = getPlayHead())
         position = hostPlayHead->getPosition();
 
+    hostHasTransport = position.hasValue() && position->getPpqPosition().hasValue() && position->getBpm().hasValue();
+
     const bool playing = position.hasValue() && position->getIsPlaying()
                       && position->getPpqPosition().hasValue() && position->getBpm().hasValue()
                       && *position->getBpm() > 0.0;
@@ -278,6 +280,9 @@ void GrooverProcessor::processBlock (juce::AudioBuffer<float>& audio, juce::Midi
         outBuffer.addEvent (juce::MidiMessage::noteOn (channel, s.note, (juce::uint8) s.velocity), s.sample);
         active.push_back ({ s.note, channel, when + noteLength });
     }
+
+    if (! scheduled.empty())
+        notesSent += (uint32_t) scheduled.size();
 
     flushNoteOffs (outBuffer, sampleCounter + numSamples - 1);
 

@@ -83,6 +83,8 @@ public:
     // Transport snapshot for the editor, in groove quarters (speed applied).
     std::atomic<double> displayPosition { 0.0 };
     std::atomic<bool> transportPlaying { false };
+    std::atomic<bool> hostHasTransport { false };  // false if the host gives no tempo/position at all
+    std::atomic<uint32_t> notesSent { 0 };          // counts generated note-ons, for the activity light
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();

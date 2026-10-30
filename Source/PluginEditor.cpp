@@ -141,9 +141,35 @@ void GrooverEditor::syncGrooveSelection()
     repaint();
 }
 
+juce::Rectangle<int> GrooverEditor::statusArea() const
+{
+    return getLocalBounds().withTrimmedTop (headerHeight).removeFromTop (22).reduced (margin, 0).removeFromRight (230);
+}
+
 void GrooverEditor::timerCallback()
 {
     syncGrooveSelection();
+
+    // MIDI OUT light and transport status, so it's obvious whether notes are going out.
+    const auto sent = processor.notesSent.load();
+    if (sent != lastNotesSent)
+    {
+        lastNotesSent = sent;
+        activityFrames = 3;
+    }
+    else if (activityFrames > 0)
+    {
+        --activityFrames;
+    }
+
+    const int status = (activityFrames > 0 ? 4 : 0)
+                     + (processor.transportPlaying.load() ? 2 : 0)
+                     + (processor.hostHasTransport.load() ? 1 : 0);
+    if (status != shownStatus)
+    {
+        shownStatus = status;
+        repaint (statusArea());
+    }
 
     if (grid.isVisible())
         grid.refresh();
@@ -175,9 +201,27 @@ void GrooverEditor::paint (juce::Graphics& g)
     const int detailsWidth = juce::GlyphArrangement::getStringWidthInt (g.getCurrentFont(), details) + 4;
     g.drawText (details, info.removeFromLeft (detailsWidth), juce::Justification::centredLeft, false);
 
+    auto status = statusArea();
+    info.setRight (status.getX() - 12);
+
     g.setFont (GrooverLookAndFeel::font (12.0f));
     g.setColour (Palette::dim);
     g.drawText (dot.trimStart() + groove.notes, info, juce::Justification::centredLeft, true);
+
+    // Transport status and MIDI OUT light.
+    const bool lit = activityFrames > 0;
+    const bool playing = processor.transportPlaying.load();
+    const auto light = status.removeFromRight (78);
+    g.setColour (lit ? Palette::accent : Palette::faint);
+    g.fillEllipse ((float) light.getX(), (float) light.getCentreY() - 3.5f, 7.0f, 7.0f);
+    g.setFont (GrooverLookAndFeel::font (10.0f, true));
+    g.setColour (lit ? Palette::text : Palette::dim);
+    g.drawText ("MIDI OUT", light.withTrimmedLeft (13), juce::Justification::centredLeft, false);
+
+    g.setColour (playing ? Palette::dim : Palette::accent);
+    g.drawText (playing ? juce::String ("PLAYING")
+                        : (processor.hostHasTransport.load() ? juce::String ("STOPPED - PRESS PLAY") : juce::String ("NO HOST TRANSPORT")),
+                status.withTrimmedRight (12), juce::Justification::centredRight, false);
 
     // Footer divider.
     g.setColour (Palette::line);

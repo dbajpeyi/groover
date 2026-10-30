@@ -45,14 +45,22 @@ To publish a versioned release, push a tag: `git tag v0.1.0 && git push origin v
 Live doesn't let a plugin sit in front of an instrument on the same track, so use
 two tracks:
 
-1. Put **Groover** on a MIDI track (track A).
-2. Put your drum instrument on a second MIDI track (track B).
-3. On track B, set **MIDI From** to track A and pick **Groover** in the
-   second dropdown. Set **Monitor** to **In**.
-4. Press play. Groover follows Live's transport and tempo.
+1. Load the **VST3** version of Groover on a MIDI track (track A). On macOS, Live
+   only passes on MIDI from VST plugins, not Audio Units. In the browser, use
+   **Plug-ins > VST3**, or turn Audio Units off in **Settings > Plug-Ins**.
+2. Put your drum instrument (Drum Rack, a drum plugin...) on a second MIDI
+   track (track B).
+3. On track B, set **MIDI From** to track A. In the dropdown below it, choose
+   **Groover**, not "Pre FX" or "Post FX".
+4. Set track B's **Monitor** to **In**. With **Auto** it only listens while
+   armed.
+5. Press play in Live. Groover only plays while the transport is running.
 
-On macOS, use the VST3 version in Live if Groover doesn't show up as a
-MIDI source when you load the AU.
+The status readout at the top right of Groover shows **PLAYING** or **STOPPED**,
+and the **MIDI OUT** light flashes for every note sent. If the light flashes but
+track B stays silent, the problem is in the routing (steps 3 and 4). If it stays
+dark while Live plays, check that every part isn't muted and that Velocity isn't
+at its lowest.
 
 Or skip the routing: drag **DRAG MIDI** into any MIDI track to get an 8-bar clip
 you can edit.
