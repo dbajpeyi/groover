@@ -1,0 +1,122 @@
+name: Build
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            os: macos-latest
+            cmake_args: -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+          - name: Windows
+            os: windows-latest
+            cmake_args: ""
+          - name: Linux
+            os: ubuntu-latest
+            cmake_args: ""
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libx11-dev libxrandr-dev libxinerama-dev \
+            libxcursor-dev libxcomposite-dev libxext-dev libfreetype-dev libfontconfig1-dev
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release ${{ matrix.cmake_args }}
+
+      - name: Build
+        run: cmake --build build --config Release --parallel 4
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      # Unsigned plugins won't load on Apple Silicon; an ad-hoc signature is enough.
+      - name: Sign (ad hoc) and package for macOS
+        if: runner.os == 'macOS'
+        run: |
+          cd build/Groover_artefacts/Release
+          codesign --force --deep --sign - VST3/Groover.vst3
+          codesign --force --deep --sign - AU/Groover.component
+          mkdir -p "$GITHUB_WORKSPACE/dist/Groover"
+          cp -R VST3/Groover.vst3 AU/Groover.component "$GITHUB_WORKSPACE/dist/Groover/"
+          cd "$GITHUB_WORKSPACE/dist"
+          ditto -c -k --keepParent Groover Groover-macOS.zip
+
+      - name: Package for Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Compress-Archive -Path build/Groover_artefacts/Release/VST3/Groover.vst3 -DestinationPath dist/Groover-Windows-VST3.zip
+
+      - name: Package for Linux
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p dist
+          cd build/Groover_artefacts/Release/VST3
+          zip -r "$GITHUB_WORKSPACE/dist/Groover-Linux-VST3.zip" Groover.vst3
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: Groover-${{ matrix.name }}
+          path: dist/*.zip
+          if-no-files-found: error
+
+  # Tags like v0.1.0 publish a release. Pushes to the default branch refresh a
+  # rolling "nightly" pre-release, so there is always a download link.
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Write release notes
+        run: |
+          cat > notes.md <<'NOTES'
+          **Downloads**
+          - `Groover-macOS.zip`: VST3 and AU (Apple Silicon and Intel). Copy `Groover.vst3` to `~/Library/Audio/Plug-Ins/VST3` and `Groover.component` to `~/Library/Audio/Plug-Ins/Components`.
+          - `Groover-Windows-VST3.zip`: copy `Groover.vst3` to `C:\Program Files\Common Files\VST3`.
+          - `Groover-Linux-VST3.zip`: copy `Groover.vst3` to `~/.vst3`.
+
+          The plugins are not notarized. On macOS, if your DAW refuses to load them, run:
+          `xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/Groover.vst3 ~/Library/Audio/Plug-Ins/Components/Groover.component`
+          NOTES
+
+      - name: Publish tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: gh release create "$GITHUB_REF_NAME" dist/*.zip --title "Groover $GITHUB_REF_NAME" --notes-file notes.md
+
+      - name: Refresh nightly pre-release
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        run: |
+          gh release delete nightly --cleanup-tag --yes || true
+          echo "" >> notes.md
+          echo "Built from ${GITHUB_SHA::7} on $(date -u +%Y-%m-%d)." >> notes.md
+          gh release create nightly dist/*.zip --prerelease --target "$GITHUB_SHA" \
+            --title "Groover nightly" --notes-file notes.md

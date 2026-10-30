@@ -19,6 +19,27 @@ with a few controls for feel and variation.
   Fills every 2/4/8/16 bars with a crash after, and half/double speed.
 - **Drag MIDI**: drag the groove straight into a MIDI track as an 8-bar clip.
 
+## Download
+
+Prebuilt plugins are on the [Releases page](https://github.com/dbajpeyi/groover/releases).
+The **nightly** pre-release is rebuilt from the default branch on every push;
+tagged versions (`v0.1.0` and so on) get their own release.
+
+| File | Contents | Install to |
+| --- | --- | --- |
+| `Groover-macOS.zip` | VST3 + AU, Apple Silicon and Intel | `~/Library/Audio/Plug-Ins/VST3` and `~/Library/Audio/Plug-Ins/Components` |
+| `Groover-Windows-VST3.zip` | VST3 | `C:\Program Files\Common Files\VST3` |
+| `Groover-Linux-VST3.zip` | VST3 | `~/.vst3` |
+
+The builds aren't notarized. On macOS, if your DAW won't load them, clear the
+download quarantine flag and rescan:
+
+```sh
+xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/Groover.vst3 ~/Library/Audio/Plug-Ins/Components/Groover.component
+```
+
+To publish a versioned release, push a tag: `git tag v0.1.0 && git push origin v0.1.0`.
+
 ## Using it in Ableton Live
 
 Live doesn't let a plugin sit in front of an instrument on the same track, so use
