@@ -59,8 +59,7 @@ two tracks:
 The status readout at the top right of Groover shows **PLAYING** or **STOPPED**,
 and the **MIDI OUT** light flashes for every note sent. If the light flashes but
 track B stays silent, the problem is in the routing (steps 3 and 4). If it stays
-dark while Live plays, check that every part isn't muted and that Velocity isn't
-at its lowest.
+dark while Live plays, check that the parts aren't all muted.
 
 Or skip the routing: drag **DRAG MIDI** into any MIDI track to get an 8-bar clip
 you can edit.
